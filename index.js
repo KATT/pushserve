@@ -18,6 +18,7 @@ var startServer = function(options, callback) {
   if (options.stripSlashes == null) options.stripSlashes = false;
   if (options.noPushState == null) options.noPushState = false;
   if (options.noLog == null) options.noLog = false;
+  if (options.delayAjaxRequests == null) options.delayAjaxRequests = false;
   if (callback == null) callback = Function.prototype;
 
   var app = express();
@@ -37,6 +38,18 @@ var startServer = function(options, callback) {
   // Redirect requests that include a trailing slash.
   if (options.stripSlashes) {
     app.use(slashes(false));
+  }
+
+  // Delay AJAX requests
+  if (options.delayAjaxRequests) {
+    console.log('Going to delayAjaxRequests');
+    app.all('*', function(request, response, next) {
+      if (request.headers['x-requested-with'] == 'XMLHttpRequest') {
+        setTimeout(next, 3000);
+      } else {
+        next();
+      }
+    });
   }
 
   // Route all non-existent files to `index.html`
