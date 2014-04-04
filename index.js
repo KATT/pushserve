@@ -1,5 +1,7 @@
 var express = require('express');
 var http = require('http');
+var https = require('https');
+
 var sysPath = require('path');
 var slashes = require('connect-slashes');
 
@@ -18,6 +20,13 @@ var startServer = function(options, callback) {
   if (options.stripSlashes == null) options.stripSlashes = false;
   if (options.noPushState == null) options.noPushState = false;
   if (options.noLog == null) options.noLog = false;
+  if (options.proxy == null) options.proxy = [];
+
+  // options.proxy.push({
+  //   path: '/api',
+  //   url: 'https://test.myapi.com'
+  // });
+
   if (callback == null) callback = Function.prototype;
 
   var app = express();
@@ -38,6 +47,42 @@ var startServer = function(options, callback) {
   if (options.stripSlashes) {
     app.use(slashes(false));
   }
+
+
+  options.proxy.forEach(function (proxy) {
+    app.use(proxy.path, function(req, res) {
+      url = proxy.url + req.url;
+
+      var options = require('url').parse( url );
+      options.rejectUnauthorized = false;
+      options.headers = req.headers;
+      options.method = req.method;
+
+      // console.log('proxy options', options);
+
+
+      var proxyRequest = https.request( options, function ( proxyResponse ) {
+        // console.log("proxyResponse statusCode:", proxyResponse.statusCode);
+        // console.log("proxyResponse headers:", proxyResponse.headers);
+
+        for (var key in proxyResponse.headers) {
+          res.setHeader(key, proxyResponse.headers[key]);
+        }
+
+        res.status(proxyResponse.statusCode)
+        proxyResponse.pipe(res);
+      }).on( 'error',function ( e ) {
+        // console.error('error:', e);
+        res.send(500, 'Proxying failed!');
+      });
+
+      req.pipe(proxyRequest);
+      req.on('end', function() {
+        proxyRequest.end();
+      });
+
+    });
+  });
 
   // Route all non-existent files to `index.html`
   if (!options.noPushState) {
