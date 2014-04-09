@@ -24,7 +24,8 @@ var startServer = function(options, callback) {
 
   // options.proxy.push({
   //   path: '/api',
-  //   url: 'https://test.myapi.com'
+  //   url: 'https://test.myapi.com',
+  //   delay: [0, 1000] // delay response with random 0-1000 ms
   // });
 
   if (callback == null) callback = Function.prototype;
@@ -68,9 +69,30 @@ var startServer = function(options, callback) {
         for (var key in proxyResponse.headers) {
           res.setHeader(key, proxyResponse.headers[key]);
         }
+        var delay = proxy.delay;
 
-        res.status(proxyResponse.statusCode)
-        proxyResponse.pipe(res);
+        res.status(proxyResponse.statusCode);
+        if (!delay) {
+          proxyResponse.pipe(res);
+          return;
+        }
+
+        if (typeof delay == 'object') {
+          var min = delay[0];
+          var max = delay[1];
+          var diff = (max-min);
+
+          delay = Math.round(Math.random() * diff + min)
+        }
+
+        console.log('[proxy] Delaying', req.url, 'with', delay, 'milliseconds')
+        if (typeof delay != 'number') {
+          throw new Error("proxy.delay needs to be or have function that returns a number");
+        }
+        setTimeout(function() {
+          proxyResponse.pipe(res);
+        }, delay);
+
       }).on( 'error',function ( e ) {
         // console.error('error:', e);
         res.send(500, 'Proxying failed!');
