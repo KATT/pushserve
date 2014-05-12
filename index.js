@@ -51,7 +51,8 @@ var startServer = function(options, callback) {
 
   options.proxy.forEach(function (proxy) {
     app.use(proxy.path, function(req, res) {
-      url = proxy.url + req.url;
+      var url = proxy.url + req.url;
+      var protocol = url.indexOf('https') === 0 ? https : http;
 
       var options = require('url').parse( url );
       options.rejectUnauthorized = false;
@@ -61,7 +62,7 @@ var startServer = function(options, callback) {
       // console.log('proxy options', options);
 
 
-      var proxyRequest = https.request( options, function ( proxyResponse ) {
+      var proxyRequest = protocol.request( options, function ( proxyResponse ) {
         // console.log("proxyResponse statusCode:", proxyResponse.statusCode);
         // console.log("proxyResponse headers:", proxyResponse.headers);
 
