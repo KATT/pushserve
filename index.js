@@ -59,6 +59,9 @@ var startServer = function(options, callback) {
       options.headers = req.headers;
       options.method = req.method;
 
+      // keeping the host messes up some targets (like apiary)
+      delete options.headers.host;
+
       // console.log('proxy options', options);
 
 
