@@ -50,6 +50,7 @@ var startServer = function(options, callback) {
 
 
   options.proxy.forEach(function (proxy) {
+    var cache = {};
     app.use(proxy.path, function(req, res) {
       var url = proxy.url + req.url;
       var protocol = url.indexOf('https') === 0 ? https : http;
@@ -64,19 +65,50 @@ var startServer = function(options, callback) {
 
       // console.log('proxy options', options);
 
+      console.log(url, "request..", options.pathname);
+
+      var requestKey = options.pathname;
+      var cached = cache[requestKey];
+      if (proxy.cache && cached) {
+        for (var key in cached.headers) {
+          res.setHeader(key, cached.headers[key]);
+        }
+        res.status(cached.statusCode);
+        res.send(cached.data);
+
+        console.log(url, "cached statusCode", cached.statusCode);
+
+        return;
+      }
+
 
       var proxyRequest = protocol.request( options, function ( proxyResponse ) {
-        // console.log("proxyResponse statusCode:", proxyResponse.statusCode);
+        var statusCode = proxyResponse.statusCode;
+        console.log(url, "statusCode:", statusCode);
         // console.log("proxyResponse headers:", proxyResponse.headers);
 
         for (var key in proxyResponse.headers) {
           res.setHeader(key, proxyResponse.headers[key]);
         }
+        if (proxy.cache && statusCode >= 200 && statusCode < 300) {
+          var data = '';
+          proxyResponse.on('data', function(chunk) {
+            data += chunk;
+          });
+          proxyResponse.on('end', function() {
+            var item = {
+              headers    : proxyResponse.headers,
+              statusCode : statusCode,
+              data       : data,
+            };
+            cache[requestKey] = item;
+          });
+        }
 
-        res.status(proxyResponse.statusCode)
+        res.status(statusCode)
         proxyResponse.pipe(res);
       }).on( 'error',function ( e ) {
-        // console.error('error:', e);
+        console.error('error:', e);
         res.send(500, 'Proxying failed!');
       });
 
