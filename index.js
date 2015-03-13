@@ -52,7 +52,8 @@ var startServer = function(options, callback) {
   options.proxy.forEach(function (proxy) {
     var cache = {};
     app.use(proxy.path, function(req, res) {
-      var url = proxy.url + req.url;
+      var prefix = proxy.prefix || '';
+      var url = proxy.url + prefix + req.url;
       var protocol = url.indexOf('https') === 0 ? https : http;
 
       var options = require('url').parse( url );
@@ -65,7 +66,7 @@ var startServer = function(options, callback) {
 
       // console.log('proxy options', options);
 
-      console.log(url, "request..", options.pathname);
+      console.log('proxy', proxy.path, "request..", req.url, '->', options.href);
 
       var requestKey = options.pathname;
       var cached = cache[requestKey];
